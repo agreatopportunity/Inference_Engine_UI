@@ -418,10 +418,6 @@ def get_system_info():
 # CYBERPUNK CSS THEME
 # ═══════════════════════════════════════════════════════════════════════════════
 CSS = """
-/* ═══════════════════════════════════════════════════════════════════════════ */
-/* LLM UI - CYBERPUNK INTERFACE                                                */
-/* ═══════════════════════════════════════════════════════════════════════════ */
-
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
 
 :root {
@@ -455,22 +451,6 @@ body {
     overflow: hidden;
 }
 
-.title-banner::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
-    animation: scan-line 3s linear infinite;
-}
-
-@keyframes scan-line {
-    0% { left: -100%; }
-    100% { left: 100%; }
-}
-
 .title-text {
     font-family: 'Orbitron', sans-serif !important;
     font-size: 2.5rem !important;
@@ -480,7 +460,6 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     animation: gradient-shift 3s ease infinite;
-    text-shadow: 0 0 30px rgba(0, 243, 255, 0.5);
     margin: 0;
 }
 
@@ -503,9 +482,7 @@ body {
     border-radius: 12px !important;
     padding: 20px !important;
     backdrop-filter: blur(10px);
-    box-shadow: 
-        0 0 20px rgba(0, 243, 255, 0.1),
-        inset 0 0 60px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
 }
 
 /* SECTION HEADERS */
@@ -527,12 +504,28 @@ body {
     border: 1px solid var(--border-glow) !important;
     color: #e0e0e0 !important;
     font-family: 'Share Tech Mono', monospace !important;
-    border-radius: 6px !important;
 }
 
-.gradio-textbox textarea:focus, .gradio-textbox input:focus {
-    border-color: var(--neon-cyan) !important;
-    box-shadow: 0 0 15px rgba(0, 243, 255, 0.3) !important;
+/* RADIO BUTTONS & LABELS (FIXED VISIBILITY) */
+.gradio-radio {
+    background: transparent !important;
+}
+/* The radio circle itself */
+.gradio-radio input[type="radio"] {
+    accent-color: var(--neon-cyan) !important;
+}
+/* The text label next to the radio button */
+.gradio-radio label span {
+    color: var(--neon-cyan) !important;
+    font-family: 'Orbitron', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 1.1rem !important;
+    text-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+}
+/* General Labels */
+label span {
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-family: 'Share Tech Mono', monospace !important;
 }
 
 /* BUTTONS */
@@ -542,16 +535,9 @@ body {
     color: var(--neon-cyan) !important;
     font-family: 'Orbitron', sans-serif !important;
     font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 2px !important;
-    transition: all 0.3s ease !important;
-    border-radius: 6px !important;
 }
-
 .primary-btn:hover {
-    background: linear-gradient(135deg, rgba(0, 243, 255, 0.4), rgba(255, 0, 255, 0.4)) !important;
     box-shadow: 0 0 30px rgba(0, 243, 255, 0.5) !important;
-    transform: translateY(-2px);
 }
 
 .stop-btn {
@@ -560,73 +546,22 @@ body {
     color: #ff3232 !important;
 }
 
-.stop-btn:hover {
-    background: rgba(255, 50, 50, 0.4) !important;
-    box-shadow: 0 0 20px rgba(255, 50, 50, 0.5) !important;
-}
-
 /* SLIDERS */
 .gradio-slider input[type="range"] {
     accent-color: var(--neon-cyan) !important;
 }
 
-/* OUTPUT DISPLAY */
-.output-display textarea {
-    background: rgba(0, 5, 15, 0.9) !important;
-    border: 1px solid rgba(0, 243, 255, 0.2) !important;
-    color: #00ff88 !important;
-    font-family: 'Share Tech Mono', monospace !important;
-    font-size: 0.95rem !important;
-    line-height: 1.6 !important;
-}
-
-/* STATUS BOX */
+/* STATUS & OUTPUT */
 .status-display textarea {
     background: rgba(0, 20, 40, 0.9) !important;
-    border: 1px solid rgba(0, 243, 255, 0.3) !important;
     color: var(--neon-cyan) !important;
-    font-family: 'Share Tech Mono', monospace !important;
-    font-size: 0.85rem !important;
+    border: 1px solid rgba(0, 243, 255, 0.3) !important;
 }
-
-/* GPU STATS */
-.stats-display {
-    font-family: 'Share Tech Mono', monospace !important;
-    color: var(--neon-yellow) !important;
-    background: rgba(0, 0, 0, 0.5) !important;
-    padding: 8px 12px !important;
-    border-radius: 4px !important;
-    border: 1px solid rgba(243, 255, 0, 0.3) !important;
-}
-
-/* DROPDOWN */
-.gradio-dropdown {
-    background: rgba(0, 10, 20, 0.8) !important;
-}
-
-/* SCROLLBAR */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.3);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--border-glow);
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--neon-cyan);
-}
-
-/* LABELS */
-label {
-    color: rgba(255, 255, 255, 0.8) !important;
-    font-family: 'Share Tech Mono', monospace !important;
+.output-display textarea {
+    background: rgba(0, 5, 15, 0.9) !important;
+    color: #00ff88 !important;
+    border: 1px solid rgba(0, 243, 255, 0.2) !important;
+    font-size: 1rem !important;
 }
 """
 
