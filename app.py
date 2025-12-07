@@ -18,14 +18,27 @@ import os
 import time
 import json
 import threading
+import argparse
+import sys
 from datetime import datetime
 from pathlib import Path
+
+# --- COMMAND LINE ARGUMENTS ---
+def parse_args():
+    parser = argparse.ArgumentParser(description="SOVRA OMNI: Universal AI Interface")
+    parser.add_argument("--device_id", type=int, default=1, help="GPU Index to use (Default: 1 for Titan V)")
+    parser.add_argument("--share", action="store_true", help="Create a public share link")
+    parser.add_argument("--port", type=int, default=7860, help="Port to run the UI on")
+    return parser.parse_args()
 
 # --- IMPORT ARCHITECTURE ---
 try:
     from model_llama3 import GPT, GPTConfig
 except ImportError:
     print("⚠️  model_llama3.py not found. Please ensure it is in the same folder.")
+    # Create dummy classes to prevent crash if file is missing
+    class GPTConfig: pass
+    class GPT: pass
 
 # --- HARDWARE AUTO-DETECTION ---
 def get_hardware_config(device_index=0):
@@ -33,32 +46,36 @@ def get_hardware_config(device_index=0):
         return "cpu", "float32", contextlib.nullcontext()
     
     device = f"cuda:{device_index}"
-    props = torch.cuda.get_device_properties(device)
-    major = props.major
+    try:
+        props = torch.cuda.get_device_properties(device)
+        major = props.major
+        print(f"[{props.name}] Detected on Device {device_index}")
+    except Exception as e:
+        print(f"⚠️ Error detecting GPU {device_index}: {e}")
+        return "cpu", "float32", contextlib.nullcontext()
     
     # Titan V / Pascal (Major < 8) -> float16, No Flash Attn
     if major < 8:
         dtype = "float16"
+        # Force efficient attention for older cards
         attn_ctx = torch.backends.cuda.sdp_kernel(enable_flash=False, enable_math=True, enable_mem_efficient=True)
-        print(f"[{props.name}] Detected Legacy GPU. Using float16 + Efficient Attn.")
+        print(f"   ↳ Legacy Architecture (Volta/Pascal). Using float16 + Efficient Attn.")
     else:
         # Ampere / Ada / Blackwell (Major >= 8) -> bfloat16, Flash Attn
         dtype = "bfloat16"
         attn_ctx = contextlib.nullcontext()
-        print(f"[{props.name}] Detected Modern GPU. Using bfloat16 + Flash Attn.")
+        print(f"   ↳ Modern Architecture. Using bfloat16 + Flash Attn.")
         
     return device, dtype, attn_ctx
 
 # --- GLOBAL STATE ---
+ARGS = parse_args()
+DEVICE, DTYPE, ATTN_CTX = get_hardware_config(ARGS.device_id) 
 MODEL = None
 ENC = None
-DEVICE, DTYPE, ATTN_CTX = get_hardware_config(device_index=1) # Default to GPU 1 (Titan V)
 
 # --- COGNITIVE CORE (LOCAL EDITION) ---
 class LocalCognitiveMind:
-    """
-    Adapted from ai_x5_cognitive to use LOCAL GPU instead of API
-    """
     def __init__(self):
         self.emotions = {
             "curiosity": 0.5, "focus": 0.5, "energy": 0.5, 
@@ -66,7 +83,6 @@ class LocalCognitiveMind:
         }
         self.frame = "Neutral"
         self.awareness = 0.5
-        self.history = []
     
     def process(self, prompt, model, enc, max_new_tokens=200):
         # 1. Update State
@@ -75,42 +91,43 @@ class LocalCognitiveMind:
         
         # 2. Build Context
         system_prompt = f"""You are Sovra.
-        STATE: Frame={self.frame} | Focus={self.emotions['focus']:.2f}
-        USER: {prompt}
-        SOVRA:"""
+STATE: Frame={self.frame} | Focus={self.emotions['focus']:.2f}
+USER: {prompt}
+SOVRA:"""
         
         # 3. Generate (On GPU)
         return self.generate_local(system_prompt, model, enc, max_new_tokens)
 
     def generate_local(self, text, model, enc, max_tokens):
-        if model is None: return "Error: Neural Link Offline."
+        if model is None: return "Error: Neural Link Offline. Click 'INITIALIZE LINK' first."
         
-        input_ids = torch.tensor(enc.encode(text)).unsqueeze(0).to(DEVICE)
-        
-        model.eval()
-        response_tokens = []
-        
-        with torch.no_grad(), ATTN_CTX:
-            for _ in range(max_tokens):
-                # Crop context
-                if input_ids.size(1) > model.config.block_size:
-                    input_ids = input_ids[:, -model.config.block_size:]
-                
-                logits, _ = model(input_ids)
-                logits = logits[:, -1, :] / 0.8 # Temperature
-                
-                # Sampling
-                probs = F.softmax(logits, dim=-1)
-                next_token = torch.multinomial(probs, num_samples=1)
-                
-                input_ids = torch.cat((input_ids, next_token), dim=1)
-                response_tokens.append(next_token.item())
-                
-                # Stop token check (optional)
-                if next_token.item() == 50256: # EOT
-                    break
-        
-        return enc.decode(response_tokens)
+        try:
+            input_ids = torch.tensor(enc.encode(text)).unsqueeze(0).to(DEVICE)
+            model.eval()
+            response_tokens = []
+            
+            with torch.no_grad(), ATTN_CTX:
+                for _ in range(max_tokens):
+                    # Crop context
+                    if input_ids.size(1) > model.config.block_size:
+                        input_ids = input_ids[:, -model.config.block_size:]
+                    
+                    logits, _ = model(input_ids)
+                    logits = logits[:, -1, :] / 0.8 # Temperature
+                    
+                    # Sampling
+                    probs = F.softmax(logits, dim=-1)
+                    next_token = torch.multinomial(probs, num_samples=1)
+                    
+                    input_ids = torch.cat((input_ids, next_token), dim=1)
+                    response_tokens.append(next_token.item())
+                    
+                    if next_token.item() == 50256: # EOT
+                        break
+            
+            return enc.decode(response_tokens)
+        except Exception as e:
+            return f"Generation Error: {str(e)}"
 
 MIND = LocalCognitiveMind()
 
@@ -119,10 +136,13 @@ def load_native_model(checkpoint_path, gpu_idx):
     global MODEL, ENC, DEVICE, DTYPE, ATTN_CTX
     
     # Update Hardware Config based on selection
-    DEVICE, DTYPE, ATTN_CTX = get_hardware_config(gpu_idx)
+    DEVICE, DTYPE, ATTN_CTX = get_hardware_config(int(gpu_idx))
     
     print(f"Loading {checkpoint_path} to {DEVICE} ({DTYPE})...")
     try:
+        if not os.path.exists(checkpoint_path):
+            return f"❌ Error: File not found at {checkpoint_path}"
+
         ckpt = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
         
         if isinstance(ckpt['model_config'], dict):
@@ -167,9 +187,9 @@ def interaction_handler(user_text, image, history):
     return history, history
 
 def get_dashboard():
-    # Dynamic HTML updates for the UI
     e = MIND.emotions
     w = lambda x: max(5, int(x * 100))
+    gpu_name = torch.cuda.get_device_name(DEVICE) if torch.cuda.is_available() else "CPU"
     
     return f"""
     <div style="font-family: 'Inter'; color: #94a3b8; font-size: 0.85rem;">
@@ -197,7 +217,7 @@ def get_dashboard():
             </div>
         </div>
         <div style="margin-top:15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
-            <span style="color:#00f3ff">HARDWARE:</span> {torch.cuda.get_device_name(DEVICE)}
+            <span style="color:#00f3ff">HARDWARE:</span> {gpu_name} ({DTYPE})
         </div>
     </div>
     """
@@ -228,7 +248,8 @@ with gr.Blocks(css=CSS, theme=gr.themes.Base()) as demo:
         with gr.Column(scale=1):
             with gr.Group(elem_classes="glass-panel"):
                 gr.Markdown("### 🔌 HARDWARE LINK")
-                gpu_select = gr.Dropdown(choices=[0, 1], label="Select GPU", value=1)
+                # Default to ARGS.device_id (Titan V = 1)
+                gpu_select = gr.Dropdown(choices=[0, 1], label="Select GPU", value=ARGS.device_id)
                 path_input = gr.Textbox(label="Model Path", value="checkpoints/latest.pt")
                 load_btn = gr.Button("INITIALIZE LINK", variant="secondary")
                 status_out = gr.Textbox(label="Status", interactive=False, value="Standby...")
@@ -258,4 +279,17 @@ with gr.Blocks(css=CSS, theme=gr.themes.Base()) as demo:
     txt.submit(interaction_handler, [txt, file_up, chatbot], [chatbot, chatbot]).then(get_dashboard, None, dashboard)
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", share=True)
+    if len(sys.argv) > 1 and sys.argv[1] in ['-h', '--help']:
+        print("""
+SOVRA OMNI - Command Line Arguments
+-----------------------------------
+--device_id : GPU Index to use (0 for GTX 1080, 1 for Titan V). Default: 1
+--port      : Port to run the UI on (Default: 7860)
+--share     : Create a public share link (Useful for mobile access)
+
+Example: python3 app.py --device_id 1 --share
+        """)
+        sys.exit(0)
+        
+    print(f"🚀 Launching SOVRA OMNI on GPU {ARGS.device_id}...")
+    demo.launch(server_name="0.0.0.0", server_port=ARGS.port, share=ARGS.share)
