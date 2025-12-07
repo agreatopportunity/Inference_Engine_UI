@@ -1,6 +1,6 @@
 """
 ╔═══════════════════════════════════════════════════════════════════════════════╗
-║  - Neural Interface for LLM Inference                                         ║
+║  SOVRA OMNI v2.0 - Neural Interface for LLM Inference                         ║
 ║  ─────────────────────────────────────────────────────────────────────────────║
 ║  Supports:                                                                    ║
 ║    • Native Models (.pt) - Custom LLaMA-3 architecture                        ║
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] in ['-h', '--help']:
         print("""
 ╔═══════════════════════════════════════════════════════════════════════════════╗
-║ - Command Line Arguments                                                      ║
+║  SOVRA OMNI v2.0 - Command Line Arguments                                     ║
 ╠═══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                               ║
 ║  --device_id  : GPU Index to use (Default: 0)                                 ║
@@ -415,8 +415,9 @@ def get_system_info():
     return info
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# CYBERPUNK CSS THEME
+# CYBERPUNK CSS THEME (FIXED RADIO BUTTONS)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
 
@@ -568,7 +569,16 @@ label span {
 # ═══════════════════════════════════════════════════════════════════════════════
 # GRADIO INTERFACE
 # ═══════════════════════════════════════════════════════════════════════════════
-with gr.Blocks(css=CSS, title="SOVRA OMNI") as demo:
+# Create theme that uses web-safe fonts (prevents 404s for ui-sans-serif, system-ui)
+cyberpunk_theme = gr.themes.Base(
+    primary_hue="cyan",
+    secondary_hue="purple", 
+    neutral_hue="slate",
+    font=gr.themes.GoogleFont("Share Tech Mono"),
+    font_mono=gr.themes.GoogleFont("Share Tech Mono"),
+)
+
+with gr.Blocks(css=CSS, theme=cyberpunk_theme, title="SOVRA OMNI") as demo:
     
     # HEADER
     gr.HTML("""
@@ -722,12 +732,8 @@ with gr.Blocks(css=CSS, title="SOVRA OMNI") as demo:
     
     stop_btn.click(stop_generation, outputs=status_box)
     
-    # Auto-refresh GPU stats periodically
-    demo.load(
-        ui_get_stats,
-        inputs=[gpu_dropdown],
-        outputs=gpu_stats,
-    )
+    # Note: demo.load() removed - use Refresh Stats button instead
+    # (Older Gradio versions don't support inputs in demo.load)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # LAUNCH
@@ -735,7 +741,7 @@ with gr.Blocks(css=CSS, title="SOVRA OMNI") as demo:
 if __name__ == "__main__":
     print(f"""
 ╔═══════════════════════════════════════════════════════════════════════════════╗
-║  LLM UI - Initializing...                                                     ║
+║  SOVRA OMNI v2.0 - Initializing...                                            ║
 ╠═══════════════════════════════════════════════════════════════════════════════╣
 ║  Port:   {args.port:<6}                                                       ║
 ║  Share:  {str(args.share):<6}                                                 ║
