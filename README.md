@@ -193,6 +193,29 @@ python3 app.py
   * Detects "Volta" architecture on GPU 0.
   * Auto-downgrades settings to "Safe Mode" (`float16` / Efficient Attention).
 
+### **How to Use the Commands**
+
+**1. The "Help" Command**
+Run this to see your options:
+
+```bash
+python3 app.py --help
+```
+
+**2. Force the Titan V (GPU 1)**
+Run this to start the UI specifically targeted at your Titan V:
+
+```bash
+python3 app.py --device_id 1
+```
+
+**3. Mobile Access (Share Link)**
+This generates a public URL (e.g., `https://xyz.gradio.live`) so you can access the UI from your phone:
+
+```bash
+python3 app.py --device_id 1 --share
+```
+
 -----
 
 ## 🧠 Interface Features
