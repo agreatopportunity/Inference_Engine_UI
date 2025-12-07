@@ -34,9 +34,9 @@ CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python --upgrade --force-reins
 
 ## 📂 Step 2: Verify File Structure
 
-Ensure your project folder (`~/ai/my_llm_2025/`) contains these files:
+Ensure your project folder contains these files:
 
-  * **`sovra_omni.py`**: The main UI script (formerly `app.py`).
+  * **`sovra_omni.py`**: The main UI script ( `app.py`).
   * **`model_llama3.py`**: The architecture file (Required so the script knows how to build the model).
   * **`checkpoints/latest.pt`**: Your trained model file.
 
@@ -51,7 +51,7 @@ You can run this script on **ANY** machine. It will automatically diagnose your 
 *Use this if you are running on your main machine's primary GPU.*
 
 ```bash
-python3 sovra_omni.py
+python3 app.py
 ```
 
 **Result:**
@@ -65,7 +65,7 @@ python3 sovra_omni.py
 *Use this if you are training on GPU 0 and want to chat on GPU 1 (Titan V).*
 
 ```bash
-python3 sovra_omni.py --device_id 1
+python3 app.py --device_id 1
 ```
 
 **Result:**
@@ -79,7 +79,7 @@ python3 sovra_omni.py --device_id 1
 *Use this if you move the Titan V to its own separate machine.*
 
 ```bash
-python3 sovra_omni.py
+python3 app.py
 ```
 
 **Result:**
@@ -112,9 +112,7 @@ Once the UI launches (at `http://0.0.0.0:7860`), you will see:
 
 **Error: `FlashAttention only supports Ampere GPUs`**
 
-  * **Fix:** The auto-detection failed. Manually force the Titan V mode by editing the script or ensuring you are using the latest `sovra_omni.py`.
+  * **Fix:** The auto-detection failed. Manually force the Titan V mode by editing the script or ensuring you are using the latest `app.py`.
 
 <!-- end list -->
 
-```
-```
