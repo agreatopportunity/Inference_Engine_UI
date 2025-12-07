@@ -117,12 +117,13 @@ pip install flash-attn --no-build-isolation
 CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python
 ```
 
-### A classic Python environment issue ModuleNotFoundError: No module named 'idna'. Even though pip said requirements were satisfied, it was looking at your System files (/usr/lib/python3/dist-packages), but your Conda environment (myLLM) cannot actually load that specific system module (idna).
+## ⚠️ Troubleshooting
+
+**Error: A classic Python environment issue ModuleNotFoundError: No module named 'idna'. Even though pip said requirements were satisfied, it was looking at your System files (/usr/lib/python3/dist-packages), but your Conda environment (myLLM) cannot actually load that specific system module (idna).**
 
 ## The idna module is required by httpx, which is required by gradio.
 
-## The Fix
-Run this single command to force-install the missing networking dependencies directly into your Conda environment:
+* **Fix:** Run this single command to force-install the missing networking dependencies directly into your Conda environment:
 
 ```
 pip install idna httpx httpcore --upgrade --force-reinstall
