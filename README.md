@@ -1,7 +1,7 @@
 # 🌌 Universal AI Interface
 
 **The "Holo-Glass" Cognitive Interface for your custom LLaMA-3 models.**
-This interface is **Hardware Agnostic**, meaning it auto-detects your GPU (Titan V vs. RTX 4090) and adjusts precision (`float16` vs `bfloat16`) and attention mechanisms automatically to prevent crashes and maximize speed.
+This interface is **Hardware Agnostic**, meaning it auto-detects your GPU (OLDER GPU vs. NEWER GPU) and adjusts precision (`float16` vs `bfloat16`) and attention mechanisms automatically to prevent crashes and maximize speed.
 
 ---
 
