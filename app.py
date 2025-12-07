@@ -1,6 +1,6 @@
 """
 ╔═══════════════════════════════════════════════════════════════════════════════╗
-║  - Neural Interface for LLM Inference                                         ║
+║  SOVRA OMNI v2.0 - Neural Interface for LLM Inference                         ║
 ║  ─────────────────────────────────────────────────────────────────────────────║
 ║  Supports:                                                                    ║
 ║    • Native Models (.pt) - Custom LLaMA-3 architecture                        ║
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] in ['-h', '--help']:
         print("""
 ╔═══════════════════════════════════════════════════════════════════════════════╗
-║  - Command Line Arguments                                                     ║
+║  SOVRA OMNI v2.0 - Command Line Arguments                                     ║
 ╠═══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                               ║
 ║  --device_id  : GPU Index to use (Default: 0)                                 ║
@@ -261,7 +261,7 @@ def stop_generation():
     STOP_GENERATION = True
     return "⏹️ Stop signal sent..."
 
-def generate(prompt, max_tokens, temperature, top_k, top_p, device_idx):
+def generate(prompt, max_tokens, temperature, top_k, top_p, repeat_penalty, device_idx):
     """Stream tokens from loaded model"""
     global STOP_GENERATION
     STOP_GENERATION = False
@@ -288,7 +288,11 @@ def generate(prompt, max_tokens, temperature, top_k, top_p, device_idx):
                 temperature=float(temperature),
                 top_k=int(top_k),
                 top_p=float(top_p),
-                stream=True
+                repeat_penalty=float(repeat_penalty),  # From slider - prevents repetition!
+                frequency_penalty=0.0,     # Additional repetition control
+                presence_penalty=0.0,      # Additional repetition control
+                stream=True,
+                stop=["</s>", "<|endoftext|>", "<|im_end|>", "\n\n\n"]  # Common stop tokens
             )
             
             partial = ""
@@ -691,6 +695,11 @@ with gr.Blocks(css=CSS, theme=cyberpunk_theme, title="SOVRA OMNI") as demo:
                             0.0, 1.0, value=0.95, step=0.01,
                             label="Top-P (nucleus)"
                         )
+                    with gr.Column(scale=1):
+                        repeat_penalty_slider = gr.Slider(
+                            1.0, 2.0, value=1.1, step=0.05,
+                            label="Repeat Penalty"
+                        )
                 
                 with gr.Row():
                     generate_btn = gr.Button(
@@ -717,16 +726,16 @@ with gr.Blocks(css=CSS, theme=cyberpunk_theme, title="SOVRA OMNI") as demo:
         outputs=gpu_stats
     )
     
-    # FIX: Now passing correct parameters (top_k instead of max_tokens twice)
+    # FIX: Now passing correct parameters including repeat_penalty
     generate_btn.click(
         generate,
-        inputs=[input_box, max_tokens_slider, temp_slider, top_k_slider, top_p_slider, gpu_dropdown],
+        inputs=[input_box, max_tokens_slider, temp_slider, top_k_slider, top_p_slider, repeat_penalty_slider, gpu_dropdown],
         outputs=output_box
     )
     
     input_box.submit(
         generate,
-        inputs=[input_box, max_tokens_slider, temp_slider, top_k_slider, top_p_slider, gpu_dropdown],
+        inputs=[input_box, max_tokens_slider, temp_slider, top_k_slider, top_p_slider, repeat_penalty_slider, gpu_dropdown],
         outputs=output_box
     )
     
@@ -741,7 +750,7 @@ with gr.Blocks(css=CSS, theme=cyberpunk_theme, title="SOVRA OMNI") as demo:
 if __name__ == "__main__":
     print(f"""
 ╔═══════════════════════════════════════════════════════════════════════════════╗
-║  - Initializing...                                                            ║
+║  SOVRA OMNI v2.0 - Initializing...                                            ║
 ╠═══════════════════════════════════════════════════════════════════════════════╣
 ║  Port:   {args.port:<6}                                                       ║
 ║  Share:  {str(args.share):<6}                                                 ║
