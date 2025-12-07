@@ -5,7 +5,60 @@ This interface is **Hardware Agnostic**, meaning it auto-detects your GPU (Titan
 
 ---
 
-## Step 1: Installation & Setup
+
+## Installation & Setup
+
+To use your machine properly, you should install **Miniconda**. It is the industry standard for deep learning on Linux because it is lightweight and avoids the bloat of the full Anaconda distribution.
+
+### Install Miniconda
+
+This block downloads the installer, runs it silently (no need to press "Enter" 50 times), and initializes it for your shell.
+
+```bash
+# 1. Create a directory for the installer
+mkdir -p ~/miniconda3
+
+# 2. Download the latest Linux x86_64 installer
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh
+
+# 3. Run the installer (Silent Mode)
+# -b = Batch mode (no questions)
+# -u = Update existing installation if found
+# -p = Install path
+bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
+
+# 4. Cleanup the installer file
+rm -rf ~/miniconda3/miniconda.sh
+
+# 5. Initialize Conda for your shell (Bash)
+~/miniconda3/bin/conda init bash
+
+# 6. Reload your shell to make the 'conda' command visible
+source ~/.bashrc
+```
+
+### Step 2: Verify Installation
+
+Run this to make sure Conda is working. It should return a version number (e.g., `conda 24.x.x`).
+
+```bash
+conda --version
+```
+
+### Step 3: Run Your Planned Commands
+
+```bash
+# Create your environment
+conda create -n myLLM python=3.11 -y
+
+# Activate it
+conda activate myLLM
+```
+
+Video Explanation: [Miniconda Installation](https://www.google.com/search?q=https://www.youtube.com/watch%3Fv%3D2K4Vaf9aN80)
+*This video visually demonstrates the Miniconda installation process on Linux if you prefer to watch the steps.*
+
+
 ```markdown
 ### 1\. The Core Essentials (Run this first)
 
