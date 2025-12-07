@@ -1,4 +1,4 @@
-# Step 1: Install Gradio
+## Step 1: Install Gradio ##
 pip install gradio
 
 ## Step 2: The "UI" Script (app.py) Here is the Universal Inference UI. ##
