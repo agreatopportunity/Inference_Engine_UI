@@ -83,6 +83,89 @@ CURRENT_ENGINE = None  # "native" or "gguf"
 MODEL_INFO = {}
 ENC = None
 STOP_GENERATION = False
+CURRENT_TEMPLATE = "None (Raw)"  # Track current chat template
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CHAT TEMPLATES - Auto-wrap prompts for different model types
+# ═══════════════════════════════════════════════════════════════════════════════
+CHAT_TEMPLATES = {
+    "None (Raw)": {
+        "format": "{prompt}",
+        "description": "No template - raw prompt",
+        "detect": []  # No auto-detection patterns
+    },
+    "Llama-2/Mistral": {
+        "format": "[INST] {prompt} [/INST]",
+        "description": "Llama-2-Chat, Mistral-Instruct",
+        "detect": ["llama-2", "mistral", "mixtral", "inst"]
+    },
+    "Llama-3": {
+        "format": "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+        "description": "Llama-3-Instruct models",
+        "detect": ["llama-3", "llama3"]
+    },
+    "ChatML (Qwen/Yi)": {
+        "format": "<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n",
+        "description": "Qwen, Yi, OpenHermes",
+        "detect": ["qwen", "yi-", "chatml", "hermes"]
+    },
+    "DeepSeek": {
+        "format": "### Instruction:\n{prompt}\n\n### Response:\n",
+        "description": "DeepSeek, DeepSeek-Coder",
+        "detect": ["deepseek"]
+    },
+    "DeepSeek-V2/V3": {
+        "format": "<|begin▁of▁sentence|><|User|>{prompt}<|Assistant|>",
+        "description": "DeepSeek-V2, V3 models",
+        "detect": ["deepseek-v2", "deepseek-v3", "deepseek-r1"]
+    },
+    "Alpaca": {
+        "format": "### Instruction:\n{prompt}\n\n### Response:\n",
+        "description": "Alpaca-style models",
+        "detect": ["alpaca"]
+    },
+    "Vicuna": {
+        "format": "USER: {prompt}\nASSISTANT:",
+        "description": "Vicuna models",
+        "detect": ["vicuna"]
+    },
+    "Phi-3": {
+        "format": "<|user|>\n{prompt}<|end|>\n<|assistant|>\n",
+        "description": "Microsoft Phi-3 models",
+        "detect": ["phi-3", "phi3"]
+    },
+    "Gemma": {
+        "format": "<start_of_turn>user\n{prompt}<end_of_turn>\n<start_of_turn>model\n",
+        "description": "Google Gemma models",
+        "detect": ["gemma"]
+    },
+    "Command-R": {
+        "format": "<|START_OF_TURN_TOKEN|><|USER_TOKEN|>{prompt}<|END_OF_TURN_TOKEN|><|START_OF_TURN_TOKEN|><|CHATBOT_TOKEN|>",
+        "description": "Cohere Command-R models",
+        "detect": ["command-r"]
+    },
+    "Zephyr": {
+        "format": "<|user|>\n{prompt}</s>\n<|assistant|>\n",
+        "description": "Zephyr models",
+        "detect": ["zephyr"]
+    },
+}
+
+def detect_template(model_path: str) -> str:
+    """Auto-detect chat template from model filename"""
+    filename = model_path.lower()
+    for template_name, template_info in CHAT_TEMPLATES.items():
+        for pattern in template_info["detect"]:
+            if pattern in filename:
+                return template_name
+    return "None (Raw)"
+
+def apply_template(prompt: str, template_name: str) -> str:
+    """Apply chat template to prompt"""
+    if template_name not in CHAT_TEMPLATES:
+        return prompt
+    template = CHAT_TEMPLATES[template_name]["format"]
+    return template.format(prompt=prompt)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # HARDWARE DETECTION & CONFIGURATION
@@ -136,11 +219,19 @@ def get_device_config(device_id):
         # Auto-select precision based on GPU architecture
         if props.major < 8:  # Pre-Ampere (Titan V, 1080, 2080, etc.)
             dtype = "float16"
-            attn = torch.backends.cuda.sdp_kernel(
-                enable_flash=False, 
-                enable_math=True, 
-                enable_mem_efficient=True
-            )
+            # Use newer API if available (PyTorch 2.2+), fallback to deprecated
+            try:
+                from torch.nn.attention import sdpa_kernel, SDPBackend
+                attn = sdpa_kernel([SDPBackend.MATH, SDPBackend.EFFICIENT_ATTENTION])
+            except ImportError:
+                # Fallback for older PyTorch versions
+                import warnings
+                warnings.filterwarnings("ignore", message=".*sdp_kernel.*deprecated.*")
+                attn = torch.backends.cuda.sdp_kernel(
+                    enable_flash=False, 
+                    enable_math=True, 
+                    enable_mem_efficient=True
+                )
         else:  # Ampere+ (3090, 4060 Ti, 4090, etc.)
             dtype = "bfloat16"
             attn = contextlib.nullcontext()
@@ -261,7 +352,7 @@ def stop_generation():
     STOP_GENERATION = True
     return "⏹️ Stop signal sent..."
 
-def generate(prompt, max_tokens, temperature, top_k, top_p, repeat_penalty, device_idx):
+def generate(prompt, max_tokens, temperature, top_k, top_p, repeat_penalty, template_name, device_idx):
     """Stream tokens from loaded model"""
     global STOP_GENERATION
     STOP_GENERATION = False
@@ -274,6 +365,9 @@ def generate(prompt, max_tokens, temperature, top_k, top_p, repeat_penalty, devi
         yield "⚠️ Empty prompt"
         return
     
+    # Apply chat template
+    formatted_prompt = apply_template(prompt, template_name)
+    
     start_time = time.time()
     token_count = 0
     
@@ -283,7 +377,7 @@ def generate(prompt, max_tokens, temperature, top_k, top_p, repeat_penalty, devi
     if CURRENT_ENGINE == "gguf":
         try:
             stream = CURRENT_MODEL(
-                prompt,
+                formatted_prompt,  # Use formatted prompt with template
                 max_tokens=int(max_tokens),
                 temperature=float(temperature),
                 top_k=int(top_k),
@@ -292,7 +386,7 @@ def generate(prompt, max_tokens, temperature, top_k, top_p, repeat_penalty, devi
                 frequency_penalty=0.0,     # Additional repetition control
                 presence_penalty=0.0,      # Additional repetition control
                 stream=True,
-                stop=["</s>", "<|endoftext|>", "<|im_end|>", "\n\n\n"]  # Common stop tokens
+                stop=["</s>", "<|endoftext|>", "<|im_end|>", "<|eot_id|>", "<end_of_turn>", "</s>", "\n\n\n"]  # Common stop tokens
             )
             
             partial = ""
@@ -318,11 +412,11 @@ def generate(prompt, max_tokens, temperature, top_k, top_p, repeat_penalty, devi
         device, _, attn_ctx = get_device_config(int(device_idx))
         
         try:
-            # Encode prompt
-            tokens = ENC.encode(prompt)
+            # Encode prompt (with template applied)
+            tokens = ENC.encode(formatted_prompt)
             idx = torch.tensor([tokens], dtype=torch.long, device=device)
             
-            partial = prompt
+            partial = formatted_prompt
             
             CURRENT_MODEL.eval()
             with torch.no_grad(), attn_ctx:
@@ -385,16 +479,37 @@ def generate(prompt, max_tokens, temperature, top_k, top_p, repeat_penalty, devi
 # UI HANDLERS
 # ═══════════════════════════════════════════════════════════════════════════════
 def ui_load(engine, path, gpu, ctx):
-    """Handle model loading from UI"""
-    if not path.strip():
-        return "❌ No path specified"
-    if not os.path.exists(path):
-        return f"❌ File not found: {path}"
+    """Handle model loading from UI - returns (status_msg, detected_template)"""
+    global CURRENT_TEMPLATE
     
-    if engine == "Native (.pt)":
-        return load_native(path, int(gpu))
+    if not path.strip():
+        return "❌ No path specified", "None (Raw)"
+    if not os.path.exists(path):
+        return f"❌ File not found: {path}", "None (Raw)"
+    
+    # Auto-detect chat template from filename
+    detected = detect_template(path)
+    CURRENT_TEMPLATE = detected
+    template_msg = f"\n💬 Auto-detected template: {detected}" if detected != "None (Raw)" else ""
+    
+    # Auto-detect engine based on file extension (prevents mismatched loading)
+    path_lower = path.lower()
+    if path_lower.endswith('.gguf'):
+        if engine == "Native (.pt)":
+            msg = load_gguf(path, int(gpu), int(ctx)) + "\n⚠️ Auto-switched to GGUF engine" + template_msg
+            return msg, detected
+        return load_gguf(path, int(gpu), int(ctx)) + template_msg, detected
+    elif path_lower.endswith('.pt') or path_lower.endswith('.pth'):
+        if engine == "GGUF (.gguf)":
+            msg = load_native(path, int(gpu)) + "\n⚠️ Auto-switched to Native engine" + template_msg
+            return msg, detected
+        return load_native(path, int(gpu)) + template_msg, detected
     else:
-        return load_gguf(path, int(gpu), int(ctx))
+        # Fall back to user selection for unknown extensions
+        if engine == "Native (.pt)":
+            return load_native(path, int(gpu)) + template_msg, detected
+        else:
+            return load_gguf(path, int(gpu), int(ctx)) + template_msg, detected
 
 def ui_get_stats(gpu):
     """Update GPU stats display"""
@@ -702,6 +817,14 @@ with gr.Blocks(css=CSS, theme=cyberpunk_theme, title="SOVRA OMNI") as demo:
                         )
                 
                 with gr.Row():
+                    template_dropdown = gr.Dropdown(
+                        choices=list(CHAT_TEMPLATES.keys()),
+                        value="None (Raw)",
+                        label="💬 Chat Template (auto-detected on load)",
+                        info="Wraps your prompt in the correct format"
+                    )
+                
+                with gr.Row():
                     generate_btn = gr.Button(
                         "🚀 TRANSMIT",
                         elem_classes="primary-btn"
@@ -717,7 +840,7 @@ with gr.Blocks(css=CSS, theme=cyberpunk_theme, title="SOVRA OMNI") as demo:
     load_btn.click(
         ui_load,
         inputs=[engine_radio, model_path, gpu_dropdown, ctx_slider],
-        outputs=status_box
+        outputs=[status_box, template_dropdown]  # Now also updates template dropdown
     )
     
     refresh_btn.click(
@@ -726,16 +849,16 @@ with gr.Blocks(css=CSS, theme=cyberpunk_theme, title="SOVRA OMNI") as demo:
         outputs=gpu_stats
     )
     
-    # FIX: Now passing correct parameters including repeat_penalty
+    # Generation with chat template support
     generate_btn.click(
         generate,
-        inputs=[input_box, max_tokens_slider, temp_slider, top_k_slider, top_p_slider, repeat_penalty_slider, gpu_dropdown],
+        inputs=[input_box, max_tokens_slider, temp_slider, top_k_slider, top_p_slider, repeat_penalty_slider, template_dropdown, gpu_dropdown],
         outputs=output_box
     )
     
     input_box.submit(
         generate,
-        inputs=[input_box, max_tokens_slider, temp_slider, top_k_slider, top_p_slider, repeat_penalty_slider, gpu_dropdown],
+        inputs=[input_box, max_tokens_slider, temp_slider, top_k_slider, top_p_slider, repeat_penalty_slider, template_dropdown, gpu_dropdown],
         outputs=output_box
     )
     
