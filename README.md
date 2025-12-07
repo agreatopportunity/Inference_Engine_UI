@@ -1,7 +1,7 @@
 # Step 1: Install Gradio
 pip install gradio
 
-# # Step 2: The "UI" Script (app.py)Here is the Universal Inference UI.
+## Step 2: The "UI" Script (app.py)Here is the Universal Inference UI. ##
 
 # How to use this on ANY machine:
 # Scenario A: The RTX 4060 Ti / 4090 / 5090 (Modern) Just run it. It defaults to GPU 0.
