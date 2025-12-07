@@ -23,7 +23,18 @@ import os
 import sys
 import time
 import threading
+import subprocess
+import urllib.request
+from pathlib import Path
 from datetime import datetime
+
+# Optional: huggingface_hub for better downloads
+try:
+    from huggingface_hub import hf_hub_download
+    HF_HUB_AVAILABLE = True
+except ImportError:
+    HF_HUB_AVAILABLE = False
+    print("⚠️  huggingface_hub not installed. Using direct downloads.")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # COMMAND LINE ARGUMENTS
@@ -84,6 +95,231 @@ MODEL_INFO = {}
 ENC = None
 STOP_GENERATION = False
 CURRENT_TEMPLATE = "None (Raw)"  # Track current chat template
+DOWNLOAD_PROGRESS = {"status": "", "progress": 0}  # Track download progress
+
+# Models directory (same folder as app.py)
+MODELS_DIR = Path(__file__).parent / "models"
+MODELS_DIR.mkdir(exist_ok=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MODEL CATALOG - Popular GGUF models for download
+# ═══════════════════════════════════════════════════════════════════════════════
+MODEL_CATALOG = {
+    "── General Chat Models ──": None,  # Section header
+    "Llama-3.2-3B-Instruct (Q5_K_M, 2.3GB)": {
+        "repo": "bartowski/Llama-3.2-3B-Instruct-GGUF",
+        "file": "Llama-3.2-3B-Instruct-Q5_K_M.gguf",
+        "size": "2.3 GB",
+        "type": "chat"
+    },
+    "Llama-3.2-1B-Instruct (Q8_0, 1.3GB)": {
+        "repo": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+        "file": "Llama-3.2-1B-Instruct-Q8_0.gguf",
+        "size": "1.3 GB",
+        "type": "chat"
+    },
+    "Mistral-7B-Instruct-v0.3 (Q5_K_M, 5.1GB)": {
+        "repo": "bartowski/Mistral-7B-Instruct-v0.3-GGUF",
+        "file": "Mistral-7B-Instruct-v0.3-Q5_K_M.gguf",
+        "size": "5.1 GB",
+        "type": "chat"
+    },
+    "Qwen2.5-7B-Instruct (Q5_K_M, 5.4GB)": {
+        "repo": "Qwen/Qwen2.5-7B-Instruct-GGUF",
+        "file": "qwen2.5-7b-instruct-q5_k_m.gguf",
+        "size": "5.4 GB",
+        "type": "chat"
+    },
+    "Qwen2.5-3B-Instruct (Q5_K_M, 2.4GB)": {
+        "repo": "Qwen/Qwen2.5-3B-Instruct-GGUF",
+        "file": "qwen2.5-3b-instruct-q5_k_m.gguf",
+        "size": "2.4 GB",
+        "type": "chat"
+    },
+    "Phi-3.5-mini-instruct (Q5_K_M, 2.8GB)": {
+        "repo": "bartowski/Phi-3.5-mini-instruct-GGUF",
+        "file": "Phi-3.5-mini-instruct-Q5_K_M.gguf",
+        "size": "2.8 GB",
+        "type": "chat"
+    },
+    "Gemma-2-9B-Instruct (Q5_K_M, 6.6GB)": {
+        "repo": "bartowski/gemma-2-9b-it-GGUF",
+        "file": "gemma-2-9b-it-Q5_K_M.gguf",
+        "size": "6.6 GB",
+        "type": "chat"
+    },
+    "── Code Models ──": None,  # Section header
+    "DeepSeek-Coder-V2-Lite (Q5_K_M, 11GB)": {
+        "repo": "bartowski/DeepSeek-Coder-V2-Lite-Instruct-GGUF",
+        "file": "DeepSeek-Coder-V2-Lite-Instruct-Q5_K_M.gguf",
+        "size": "11 GB",
+        "type": "code"
+    },
+    "Qwen2.5-Coder-7B-Instruct (Q5_K_M, 5.4GB)": {
+        "repo": "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
+        "file": "qwen2.5-coder-7b-instruct-q5_k_m.gguf",
+        "size": "5.4 GB",
+        "type": "code"
+    },
+    "Qwen2.5-Coder-3B-Instruct (Q8_0, 3.6GB)": {
+        "repo": "Qwen/Qwen2.5-Coder-3B-Instruct-GGUF",
+        "file": "qwen2.5-coder-3b-instruct-q8_0.gguf",
+        "size": "3.6 GB",
+        "type": "code"
+    },
+    "── Small/Fast Models ──": None,  # Section header
+    "SmolLM2-1.7B-Instruct (Q8_0, 1.8GB)": {
+        "repo": "bartowski/SmolLM2-1.7B-Instruct-GGUF",
+        "file": "SmolLM2-1.7B-Instruct-Q8_0.gguf",
+        "size": "1.8 GB",
+        "type": "chat"
+    },
+    "TinyLlama-1.1B-Chat (Q8_0, 1.2GB)": {
+        "repo": "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF",
+        "file": "tinyllama-1.1b-chat-v1.0.Q8_0.gguf",
+        "size": "1.2 GB",
+        "type": "chat"
+    },
+}
+
+def get_model_list():
+    """Get list of model names for dropdown"""
+    return list(MODEL_CATALOG.keys())
+
+def download_model_hf(repo_id: str, filename: str, progress_callback=None):
+    """Download model using huggingface_hub"""
+    global DOWNLOAD_PROGRESS
+    
+    if not HF_HUB_AVAILABLE:
+        return None, "huggingface_hub not installed. Run: pip install huggingface_hub"
+    
+    try:
+        DOWNLOAD_PROGRESS["status"] = f"Downloading {filename}..."
+        DOWNLOAD_PROGRESS["progress"] = 10
+        
+        local_path = hf_hub_download(
+            repo_id=repo_id,
+            filename=filename,
+            local_dir=str(MODELS_DIR),
+            local_dir_use_symlinks=False
+        )
+        
+        DOWNLOAD_PROGRESS["status"] = "Complete!"
+        DOWNLOAD_PROGRESS["progress"] = 100
+        
+        return local_path, None
+    except Exception as e:
+        DOWNLOAD_PROGRESS["status"] = f"Error: {str(e)}"
+        return None, str(e)
+
+def download_model_direct(url: str, filename: str, progress_callback=None):
+    """Download model using urllib with progress"""
+    global DOWNLOAD_PROGRESS
+    
+    output_path = MODELS_DIR / filename
+    
+    try:
+        DOWNLOAD_PROGRESS["status"] = f"Connecting to {url[:50]}..."
+        DOWNLOAD_PROGRESS["progress"] = 5
+        
+        # Get file size
+        req = urllib.request.Request(url, method='HEAD')
+        with urllib.request.urlopen(req, timeout=30) as response:
+            total_size = int(response.headers.get('content-length', 0))
+        
+        # Download with progress
+        downloaded = 0
+        block_size = 1024 * 1024  # 1MB chunks
+        
+        with urllib.request.urlopen(url, timeout=60) as response:
+            with open(output_path, 'wb') as out_file:
+                while True:
+                    buffer = response.read(block_size)
+                    if not buffer:
+                        break
+                    
+                    downloaded += len(buffer)
+                    out_file.write(buffer)
+                    
+                    if total_size > 0:
+                        progress = int((downloaded / total_size) * 100)
+                        size_mb = downloaded / (1024 * 1024)
+                        total_mb = total_size / (1024 * 1024)
+                        DOWNLOAD_PROGRESS["status"] = f"Downloading: {size_mb:.0f}/{total_mb:.0f} MB"
+                        DOWNLOAD_PROGRESS["progress"] = progress
+        
+        DOWNLOAD_PROGRESS["status"] = "Complete!"
+        DOWNLOAD_PROGRESS["progress"] = 100
+        return str(output_path), None
+        
+    except Exception as e:
+        DOWNLOAD_PROGRESS["status"] = f"Error: {str(e)}"
+        if output_path.exists():
+            output_path.unlink()  # Clean up partial download
+        return None, str(e)
+
+def ui_download_model(model_selection, custom_repo, custom_file):
+    """Handle model download from UI"""
+    global DOWNLOAD_PROGRESS
+    DOWNLOAD_PROGRESS = {"status": "Starting...", "progress": 0}
+    
+    # Check if using custom or catalog
+    if custom_repo.strip() and custom_file.strip():
+        repo_id = custom_repo.strip()
+        filename = custom_file.strip()
+        model_name = filename
+    elif model_selection and model_selection in MODEL_CATALOG:
+        model_info = MODEL_CATALOG[model_selection]
+        if model_info is None:  # Section header
+            return "❌ Please select a model, not a section header", ""
+        repo_id = model_info["repo"]
+        filename = model_info["file"]
+        model_name = model_selection
+    else:
+        return "❌ Please select a model or enter custom repo/file", ""
+    
+    # Check if already exists
+    local_path = MODELS_DIR / filename
+    if local_path.exists():
+        return f"✅ Model already exists!\n\n📁 Path: {local_path}", str(local_path)
+    
+    # Download
+    yield f"⏳ Downloading: {model_name}\n📦 Repo: {repo_id}\n📄 File: {filename}\n\nThis may take several minutes...", ""
+    
+    if HF_HUB_AVAILABLE:
+        path, error = download_model_hf(repo_id, filename)
+    else:
+        # Construct direct URL
+        url = f"https://huggingface.co/{repo_id}/resolve/main/{filename}"
+        path, error = download_model_direct(url, filename)
+    
+    if error:
+        yield f"❌ Download failed: {error}", ""
+    else:
+        final_path = MODELS_DIR / filename
+        yield f"✅ Download complete!\n\n📁 Path: {final_path}\n💡 Click 'Use This Model' or copy path to Model Path field", str(final_path)
+
+def ui_use_downloaded(model_path):
+    """Set the downloaded model path in the model_path field"""
+    if model_path:
+        return model_path
+    return ""
+
+def ui_list_local_models():
+    """List models in the models directory"""
+    if not MODELS_DIR.exists():
+        return "No models directory found"
+    
+    models = list(MODELS_DIR.glob("*.gguf"))
+    if not models:
+        return "No GGUF models found in models/ directory"
+    
+    result = "📁 Local Models:\n" + "━" * 40 + "\n"
+    for m in sorted(models):
+        size_gb = m.stat().st_size / (1024**3)
+        result += f"• {m.name} ({size_gb:.1f} GB)\n"
+    
+    return result
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CHAT TEMPLATES - Auto-wrap prompts for different model types
@@ -703,6 +939,18 @@ label span {
     border: 1px solid rgba(0, 243, 255, 0.2) !important;
     font-size: 1rem !important;
 }
+
+/* Accordion styling */
+.gradio-accordion {
+    background: var(--panel-bg) !important;
+    border: 1px solid var(--border-glow) !important;
+    border-radius: 8px !important;
+    margin-bottom: 15px;
+}
+.gradio-accordion summary {
+    color: var(--neon-cyan) !important;
+    font-family: 'Share Tech Mono', monospace !important;
+}
 """
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -723,7 +971,7 @@ with gr.Blocks(css=CSS, theme=cyberpunk_theme, title="SOVRA OMNI") as demo:
     gr.HTML("""
         <div class="title-banner">
             <h1 class="title-text">SOVRA OMNI</h1>
-            <p class="subtitle">Neural Interface v2.0 │ LLM Inference Engine</p>
+            <p class="subtitle">Neural Interface v2.1 │ LLM Inference Engine</p>
         </div>
     """)
     
@@ -783,6 +1031,44 @@ with gr.Blocks(css=CSS, theme=cyberpunk_theme, title="SOVRA OMNI") as demo:
                 )
                 
                 refresh_btn = gr.Button("🔄 Refresh Stats", size="sm")
+            
+            # Model Downloader Section
+            gr.HTML('<div class="section-header">📥 Model Downloader</div>')
+            with gr.Accordion("Download GGUF Models from HuggingFace", open=False):
+                with gr.Group(elem_classes="panel-container"):
+                    model_select = gr.Dropdown(
+                        choices=get_model_list(),
+                        label="Select Model",
+                        info="Popular pre-configured models"
+                    )
+                    
+                    gr.Markdown("**Or enter custom HuggingFace repo:**")
+                    with gr.Row():
+                        custom_repo = gr.Textbox(
+                            label="Repo ID",
+                            placeholder="username/repo-name",
+                            scale=2
+                        )
+                        custom_file = gr.Textbox(
+                            label="Filename",
+                            placeholder="model.gguf",
+                            scale=2
+                        )
+                    
+                    with gr.Row():
+                        download_btn = gr.Button("⬇️ Download Model", variant="primary")
+                        list_local_btn = gr.Button("📁 List Local", size="sm")
+                    
+                    download_status = gr.Textbox(
+                        label="Download Status",
+                        lines=4,
+                        interactive=False,
+                        value=ui_list_local_models()
+                    )
+                    
+                    downloaded_path = gr.Textbox(visible=False)  # Hidden field to store path
+                    
+                    use_model_btn = gr.Button("✅ Use This Model", visible=True, size="sm")
         
         # ═══════════════════════════════════════════════════════════════════════
         # RIGHT PANEL - GENERATION
@@ -884,6 +1170,24 @@ with gr.Blocks(css=CSS, theme=cyberpunk_theme, title="SOVRA OMNI") as demo:
     
     stop_btn.click(stop_generation, outputs=status_box)
     
+    # Download handlers
+    download_btn.click(
+        ui_download_model,
+        inputs=[model_select, custom_repo, custom_file],
+        outputs=[download_status, downloaded_path]
+    )
+    
+    list_local_btn.click(
+        ui_list_local_models,
+        outputs=download_status
+    )
+    
+    use_model_btn.click(
+        ui_use_downloaded,
+        inputs=[downloaded_path],
+        outputs=model_path
+    )
+    
     # Note: demo.load() removed - use Refresh Stats button instead
     # (Older Gradio versions don't support inputs in demo.load)
 
@@ -893,7 +1197,7 @@ with gr.Blocks(css=CSS, theme=cyberpunk_theme, title="SOVRA OMNI") as demo:
 if __name__ == "__main__":
     print(f"""
 ╔═══════════════════════════════════════════════════════════════════════════════╗
-║  SOVRA OMNI v2.0 - Initializing...                                            ║
+║  SOVRA OMNI v2.1 - Initializing...                                            ║
 ╠═══════════════════════════════════════════════════════════════════════════════╣
 ║  Port:   {args.port:<6}                                                       ║
 ║  Share:  {str(args.share):<6}                                                 ║
