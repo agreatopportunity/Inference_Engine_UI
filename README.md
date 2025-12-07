@@ -1,7 +1,9 @@
-# User Inference 
+# User Inference Install
 
-## Step 1: Install Gradio ##
+## Step 1: Install Gradio / Depends ##
 pip install gradio
+# This enables GGUF support
+pip install llama-cpp-python
 
 ## Step 2: The "UI" Script (app.py) Here is the Universal Inference UI. ##
 
