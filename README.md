@@ -48,6 +48,14 @@ conda --version
 ### Run Your Planned Commands
 
 ```bash
+You must manually accept the TOS for the main channels one by one using these exact commands. Run them in your terminal. Once you have run those two commands successfully, try creating your environment again.
+
+# Accept TOS for the main channel
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+
+# Accept TOS for the R channel (also required by default)
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
 # Create your environment
 conda create -n myLLM python=3.11 -y
 
