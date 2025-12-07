@@ -1,4 +1,3 @@
-
 ```markdown
 # 🌌 Universal AI Interface
 
@@ -9,28 +8,61 @@ This interface is **Hardware Agnostic**, meaning it auto-detects your GPU (Titan
 
 ## 📦 Step 1: Installation & Setup
 
-Before running the UI, you must install the interface libraries.
+### 1\. The Core Essentials (Run this first)
+
+This covers your custom LLaMA-3 model, the training scripts, and the new Holo-Glass UI.
+
+```bash
+# Core AI & Math libraries
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+pip install numpy
+
+# Data processing & Tokenization
+pip install tiktoken transformers datasets sentencepiece
+
+# The User Interface (Holo-Glass)
+pip install gradio
+
+# Training Monitoring (Optional but recommended)
+pip install wandb
+```
+
+### 2\. Speed Optimization (Highly Recommended)
+
+This makes your 5090/4090/3090 / Titan V run about 20% faster.
+
+```bash
+pip install flash-attn --no-build-isolation
+```
+
+### 3\. GGUF Support (Optional)
+
+If you want to load downloaded models (like `Llama-3-8B.gguf`) alongside your custom one, you need this.
+
+**Important:** You must install this with CUDA support enabled, or it will be slow (CPU only).
+
+```bash
+# Force it to compile with CUDA support
+CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
+```
+
+-----
+
+### 📦 The "One-Liner" Installer
+
+You can copy and paste this entire block to set up a fresh machine instantly:
+
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+pip install tiktoken transformers datasets sentencepiece numpy gradio wandb
+pip install flash-attn --no-build-isolation
+CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python
+```
 
 ### 1. Activate your Environment
 ```bash
 conda activate myLLM
 ```
-
-### 2\. Install Core Dependencies
-
-```bash
-pip install gradio tiktoken
-```
-
-### 3\. Install GGUF Support (with GPU Acceleration)
-
-*Note: This specific command is required to make GGUF models run on your GPU instead of the slow CPU.*
-
-```bash
-CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
-```
-
------
 
 ## 📂 Step 2: Verify File Structure
 
