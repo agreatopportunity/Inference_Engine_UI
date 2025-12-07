@@ -105,19 +105,89 @@ MODELS_DIR.mkdir(exist_ok=True)
 # MODEL CATALOG - Popular GGUF models for download
 # ═══════════════════════════════════════════════════════════════════════════════
 MODEL_CATALOG = {
-    "── General Chat Models ──": None,  # Section header
+    "═══ 🔥 NEW! Qwen3 (Dec 2025) ═══": None,  # Section header
+    "⭐ Qwen3-8B (Q5_K_M, 5.9GB) - RECOMMENDED": {
+        "repo": "unsloth/Qwen3-8B-GGUF",
+        "file": "Qwen3-8B-Q5_K_M.gguf",
+        "size": "5.9 GB",
+        "type": "chat"
+    },
+    "Qwen3-8B (Q4_K_M, 5.0GB) - Faster": {
+        "repo": "unsloth/Qwen3-8B-GGUF",
+        "file": "Qwen3-8B-Q4_K_M.gguf",
+        "size": "5.0 GB",
+        "type": "chat"
+    },
+    "Qwen3-4B (Q8_0, 4.7GB) - Best Small": {
+        "repo": "unsloth/Qwen3-4B-GGUF",
+        "file": "Qwen3-4B-Q8_0.gguf",
+        "size": "4.7 GB",
+        "type": "chat"
+    },
+    "Qwen3-4B-2507 (Q5_K_M, 2.8GB) - Latest Update": {
+        "repo": "unsloth/Qwen3-4B-Instruct-2507-GGUF",
+        "file": "Qwen3-4B-Instruct-2507-Q5_K_M.gguf",
+        "size": "2.8 GB",
+        "type": "chat"
+    },
+    "═══ 🧠 Reasoning Models ═══": None,
+    "⭐ DeepSeek-R1-Qwen3-8B (Q5_K_M, 5.9GB) - SOTA Reasoning": {
+        "repo": "unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF",
+        "file": "DeepSeek-R1-0528-Qwen3-8B-Q5_K_M.gguf",
+        "size": "5.9 GB",
+        "type": "chat"
+    },
+    "DeepSeek-R1-Qwen3-8B (Q4_K_M, 5.0GB) - Faster": {
+        "repo": "unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF",
+        "file": "DeepSeek-R1-0528-Qwen3-8B-Q4_K_M.gguf",
+        "size": "5.0 GB",
+        "type": "chat"
+    },
+    "═══ 💻 Code Models ═══": None,
+    "⭐ Qwen2.5-Coder-7B (Q5_K_M, 5.4GB) - Best for 12GB": {
+        "repo": "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
+        "file": "qwen2.5-coder-7b-instruct-q5_k_m.gguf",
+        "size": "5.4 GB",
+        "type": "code"
+    },
+    "Qwen2.5-Coder-7B (Q8_0, 8.1GB) - Higher Quality": {
+        "repo": "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
+        "file": "qwen2.5-coder-7b-instruct-q8_0.gguf",
+        "size": "8.1 GB",
+        "type": "code"
+    },
+    "Qwen2.5-Coder-3B (Q8_0, 3.6GB) - Fast Code": {
+        "repo": "Qwen/Qwen2.5-Coder-3B-Instruct-GGUF",
+        "file": "qwen2.5-coder-3b-instruct-q8_0.gguf",
+        "size": "3.6 GB",
+        "type": "code"
+    },
+    "Qwen2.5-Coder-1.5B (Q8_0, 1.7GB) - Ultra Fast Code": {
+        "repo": "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF",
+        "file": "qwen2.5-coder-1.5b-instruct-q8_0.gguf",
+        "size": "1.7 GB",
+        "type": "code"
+    },
+    "═══ 🦙 Llama 3.2 ═══": None,
     "Llama-3.2-3B-Instruct (Q5_K_M, 2.3GB)": {
         "repo": "bartowski/Llama-3.2-3B-Instruct-GGUF",
         "file": "Llama-3.2-3B-Instruct-Q5_K_M.gguf",
         "size": "2.3 GB",
         "type": "chat"
     },
-    "Llama-3.2-1B-Instruct (Q8_0, 1.3GB)": {
+    "Llama-3.2-3B-Instruct (Q8_0, 3.4GB) - Higher Quality": {
+        "repo": "bartowski/Llama-3.2-3B-Instruct-GGUF",
+        "file": "Llama-3.2-3B-Instruct-Q8_0.gguf",
+        "size": "3.4 GB",
+        "type": "chat"
+    },
+    "Llama-3.2-1B-Instruct (Q8_0, 1.3GB) - Ultra Fast": {
         "repo": "bartowski/Llama-3.2-1B-Instruct-GGUF",
         "file": "Llama-3.2-1B-Instruct-Q8_0.gguf",
         "size": "1.3 GB",
         "type": "chat"
     },
+    "═══ 🌟 Other Great Models ═══": None,
     "Mistral-7B-Instruct-v0.3 (Q5_K_M, 5.1GB)": {
         "repo": "bartowski/Mistral-7B-Instruct-v0.3-GGUF",
         "file": "Mistral-7B-Instruct-v0.3-Q5_K_M.gguf",
@@ -130,44 +200,19 @@ MODEL_CATALOG = {
         "size": "5.4 GB",
         "type": "chat"
     },
-    "Qwen2.5-3B-Instruct (Q5_K_M, 2.4GB)": {
-        "repo": "Qwen/Qwen2.5-3B-Instruct-GGUF",
-        "file": "qwen2.5-3b-instruct-q5_k_m.gguf",
-        "size": "2.4 GB",
-        "type": "chat"
-    },
-    "Phi-3.5-mini-instruct (Q5_K_M, 2.8GB)": {
+    "Phi-3.5-mini-instruct (Q5_K_M, 2.8GB) - Microsoft": {
         "repo": "bartowski/Phi-3.5-mini-instruct-GGUF",
         "file": "Phi-3.5-mini-instruct-Q5_K_M.gguf",
         "size": "2.8 GB",
         "type": "chat"
     },
-    "Gemma-2-9B-Instruct (Q5_K_M, 6.6GB)": {
+    "Gemma-2-9B-Instruct (Q4_K_M, 5.8GB) - Google": {
         "repo": "bartowski/gemma-2-9b-it-GGUF",
-        "file": "gemma-2-9b-it-Q5_K_M.gguf",
-        "size": "6.6 GB",
+        "file": "gemma-2-9b-it-Q4_K_M.gguf",
+        "size": "5.8 GB",
         "type": "chat"
     },
-    "── Code Models ──": None,  # Section header
-    "DeepSeek-Coder-V2-Lite (Q5_K_M, 11GB)": {
-        "repo": "bartowski/DeepSeek-Coder-V2-Lite-Instruct-GGUF",
-        "file": "DeepSeek-Coder-V2-Lite-Instruct-Q5_K_M.gguf",
-        "size": "11 GB",
-        "type": "code"
-    },
-    "Qwen2.5-Coder-7B-Instruct (Q5_K_M, 5.4GB)": {
-        "repo": "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
-        "file": "qwen2.5-coder-7b-instruct-q5_k_m.gguf",
-        "size": "5.4 GB",
-        "type": "code"
-    },
-    "Qwen2.5-Coder-3B-Instruct (Q8_0, 3.6GB)": {
-        "repo": "Qwen/Qwen2.5-Coder-3B-Instruct-GGUF",
-        "file": "qwen2.5-coder-3b-instruct-q8_0.gguf",
-        "size": "3.6 GB",
-        "type": "code"
-    },
-    "── Small/Fast Models ──": None,  # Section header
+    "═══ ⚡ Small & Fast ═══": None,
     "SmolLM2-1.7B-Instruct (Q8_0, 1.8GB)": {
         "repo": "bartowski/SmolLM2-1.7B-Instruct-GGUF",
         "file": "SmolLM2-1.7B-Instruct-Q8_0.gguf",
